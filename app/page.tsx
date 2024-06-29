@@ -57,9 +57,11 @@ export default function Home() {
   const fetchApiData = async (url: string) => {
     try {
       const response = await fetch(url);
+
+      const isJson = response.headers.get("content-type")?.includes("json");
       const data = response.ok
         ? await response.json()
-        : "Error fetching API data";
+        : "";
       setApiData(JSON.stringify(data, null, 2));
     } catch (error) {
       setApiData("Error fetching API data");
@@ -186,9 +188,12 @@ export default function Home() {
               {loading ? (
                 <p>Generating...</p>
               ) : (
-                <pre>{apiData || "API goes here..."}</pre>
+                <pre>
+                  {
+                    errorMessage ?? apiData ?? "Click 'Generate API' to preview"
+                  }
+                </pre>
               )}
-              {errorMessage && <p className="error-message">{errorMessage}</p>}
             </div>
           </div>
         </div>
