@@ -21,11 +21,7 @@ export default function Navbar() {
           <div className="navbarLogo">
             <span>APIGen</span>
           </div>
-          <div className="menuIcon" onClick={toggleMenu}>
-            <div className="bar"></div>
-            <div className="bar"></div>
-            <div className="bar"></div>
-          </div>
+         
           <div className="navbarLinks">
             <a href="https://www.linkedin.com/company/omtun/" className="getStarted">Contact</a>
           </div>

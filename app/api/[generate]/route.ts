@@ -1,16 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-
-const pool = require('../../../conf/db.ts');
+const pool = require("../../../conf/db.ts");
 
 const apiKey = process.env.GEMINI_API_KEY as string;
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
-   
+  model: "gemini-1.5-flash",
 });
 
 const generationConfig = {
@@ -18,8 +16,7 @@ const generationConfig = {
   topP: 0.95,
   topK: 64,
   maxOutputTokens: 8192,
-  responseMimeType: 'text/plain',
-  
+  responseMimeType: "text/plain",
 };
 
 let generatedDataStore: Record<string, any> = {};
@@ -37,9 +34,9 @@ async function translateText(text: string): Promise<string> {
 }
 
 async function translateColumns(columns: any[]): Promise<any[]> {
-  const columnNames = columns.map(col => col.title).join(', ');
+  const columnNames = columns.map((col) => col.title).join(", ");
   const prompt = `Translate the following column names to English and convert multi-word names to snake_case. Provide only the translated column names in the same order, separated by commas: ${columnNames}`;
-  
+
   const chatSession = model.startChat({
     generationConfig,
     history: [],
@@ -47,8 +44,8 @@ async function translateColumns(columns: any[]): Promise<any[]> {
 
   const result = await chatSession.sendMessage(prompt);
   const translatedText = result.response.text().trim();
-  
-  const translatedColumns = translatedText.split(', ').map((col, index) => {
+
+  const translatedColumns = translatedText.split(", ").map((col, index) => {
     return { title: col };
   });
 
@@ -75,40 +72,63 @@ async function getUniqueApiName(baseApiName: string): Promise<string> {
   }
 }
 
+function validateRequest(body: any) {
+  if (!body.description || !body.numRows || !body.columns) {
+    return "Description, numRows, and columns are required.";
+  }
+
+  if (!Array.isArray(body.columns) || body.columns.length === 0) {
+    return "Columns must be a non-empty array.";
+  }
+
+  return null;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { generate: string } }
 ) {
-  const baseApiName = request.nextUrl.searchParams.get('apiName');
+  const baseApiName = request.nextUrl.searchParams.get("apiName");
 
   if (!baseApiName) {
     return NextResponse.json(
-      { message: 'API name is required' },
+      { message: "API name is required" },
       { status: 400 }
     );
   }
 
   const body = await request.json();
+  const validationError = validateRequest(body);
+
+  if (validationError) {
+    return NextResponse.json(
+      { message: validationError },
+      { status: 400 }
+    );
+  }
+
   const { description, numRows, columns } = body;
 
   // Description ve column isimlerini İngilizce'ye çevir
   const translatedDescription = await translateText(description);
-  const translatedColumns = await translateColumns(columns);
+  // const translatedColumns = await translateColumns(columns);
 
   // Benzersiz apiName oluşturma
   const apiName = await getUniqueApiName(baseApiName);
 
   // Prompt oluşturma
   const prompt = `
+Ensure if column names are multi-word, they are converted to snake_case. if column name is not in English, translate it to English.
+
 Generate a JSON file with the following specifications:
-Description: ${translatedDescription}
-Number of Rows: ${numRows}
-Columns: ${translatedColumns.map((col: any) => col.title).join(', ')}
+Description: ${description}
+Number of Rows: ${columns}
+Columns: ${columns.map((col: any) => col.title).join(", ")}
 Output should be in the following JSON format:
 
 [
   {
-    "${translatedColumns.map((col: any) => col.title).join('": "value", "')}"
+    "${columns.map((col: any) => col.title).join('": "value", "')}"
   },
   ...
 ]
@@ -126,15 +146,18 @@ Ensure that the JSON format is strictly followed, and the number of rows does no
     let generatedData = result.response.text();
 
     // JSON formatını düzenleme
-    generatedData = generatedData.replace(/```json\n|```/g, '').trim();
+    generatedData = generatedData.replace(/```json\n|```/g, "").trim();
 
     // JSON verisini kontrol etme
     let parsedData;
     try {
       parsedData = JSON.parse(generatedData);
     } catch (error) {
-      console.error('Error parsing JSON:', error);
-      return NextResponse.json({ message: 'Error parsing JSON' }, { status: 500 });
+      console.error("Error parsing JSON:", error);
+      return NextResponse.json(
+        { message: "Error parsing JSON" },
+        { status: 500 }
+      );
     }
 
     // Store the generated data in the global variable
@@ -154,8 +177,11 @@ Ensure that the JSON format is strictly followed, and the number of rows does no
 
     return NextResponse.json({ data: parsedData });
   } catch (error) {
-    console.error('Error generating data:', error);
-    return NextResponse.json({ message: 'Error generating data' }, { status: 500 });
+    console.error("Error generating data:", error);
+    return NextResponse.json(
+      { message: "Error generating data" },
+      { status: 500 }
+    );
   }
 }
 
@@ -163,11 +189,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { generate: string } }
 ) {
-  const apiName = request.nextUrl.searchParams.get('apiName');
+  const apiName = request.nextUrl.searchParams.get("apiName");
 
   if (!apiName) {
     return NextResponse.json(
-      { message: 'API name is required' },
+      { message: "API name is required" },
       { status: 400 }
     );
   }
@@ -181,10 +207,13 @@ export async function GET(
     if (result.rows.length > 0) {
       return NextResponse.json(result.rows[0]);
     } else {
-      return NextResponse.json({ message: 'API not found' }, { status: 404 });
+      return NextResponse.json({ message: "API not found" }, { status: 404 });
     }
   } catch (error) {
-    console.error('Error fetching data:', error);
-    return NextResponse.json({ message: 'Error fetching data' }, { status: 500 });
+    console.error("Error fetching data:", error);
+    return NextResponse.json(
+      { message: "Error fetching data" },
+      { status: 500 }
+    );
   }
 }

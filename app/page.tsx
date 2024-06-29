@@ -15,53 +15,82 @@ const generateRandomString = (length: number): string => {
 };
 
 export default function Home() {
-  const [columns, setColumns] = useState<Column[]>([
-    { attribute: "name" },
-    { attribute: "rank" },
-  ]);
-  const [apiName, setApiName] = useState("most-popular-programming-languages");
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [apiName, setApiName] = useState("");
   const [numRows, setNumRows] = useState(50);
-  const [description, setDescription] = useState(
-    "Most Popular Programming Languages"
-  );
+  const [description, setDescription] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [apiData, setApiData] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    [key: string]: string | null;
+  }>({});
 
-  const handleAddColumn = () =>
-    setColumns([...columns, { attribute: `Column ${columns.length + 1}` }]);
+  const validateForm = (): boolean => {
+    let errors: { [key: string]: string | null } = {};
+
+    if (!apiName.trim()) {
+      errors.apiName = "API Name is required.";
+    }
+
+    if (numRows <= 0) {
+      errors.numRows = "Number of rows must be a positive number.";
+    }
+
+    if (!description.trim()) {
+      errors.description = "Description is required.";
+    }
+
+    columns.forEach((column, index) => {
+      if (!column.attribute.trim()) {
+        errors[`column-${index}`] = "Column title is required.";
+      }
+    });
+
+    setFormErrors(errors);
+
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddColumn = () => setColumns([...columns, { attribute: "" }]);
 
   const handleColumnChange = (index: number, value: string) => {
     setColumns(
       columns.map((col, i) => (i === index ? { attribute: value } : col))
     );
+    setFormErrors({ ...formErrors, [`column-${index}`]: null });
   };
 
-  const handleDeleteColumn = (index: number) =>
+  const handleDeleteColumn = (index: number) => {
     setColumns(columns.filter((_, i) => i !== index));
+    setFormErrors({ ...formErrors, [`column-${index}`]: null });
+  };
 
   const handleApiNameChange = (e: ChangeEvent<HTMLInputElement>) => {
     const newApiName = e.target.value.replace(/\s+/g, "-");
     const randomString = generateRandomString(4);
     setApiName(newApiName);
     setGeneratedUrl(`/api/generate?apiName=${newApiName}-${randomString}`);
+    setFormErrors({ ...formErrors, apiName: null });
   };
 
-  const handleNumRowsChange = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleNumRowsChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNumRows(Number(e.target.value));
+    setFormErrors({ ...formErrors, numRows: null });
+  };
 
-  const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) =>
+  const handleDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setDescription(e.target.value);
+    setFormErrors({ ...formErrors, description: null });
+  };
 
   const fetchApiData = async (url: string) => {
     try {
       const response = await fetch(url);
 
       const isJson = response.headers.get("content-type")?.includes("json");
-      const data = response.ok
-        ? await response.json()
-        : "";
+      const data = response.ok ? await response.json() : "";
       setApiData(JSON.stringify(data, null, 2));
     } catch (error) {
       setApiData("Error fetching API data");
@@ -74,6 +103,11 @@ export default function Home() {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
 
     const randomString = generateRandomString(4);
     const newApiName = `${apiName}-${randomString}`;
@@ -118,7 +152,8 @@ export default function Home() {
                   <label>Column Title</label>
                   <input
                     type="text"
-                    value={column.attribute}
+                    // value={column.attribute}
+                    placeholder={column.attribute}
                     onChange={(e) => handleColumnChange(index, e.target.value)}
                   />
                   <button
@@ -127,6 +162,9 @@ export default function Home() {
                   >
                     🗑️
                   </button>
+                  {formErrors[`column-${index}`] && (
+                    <div className="error">{formErrors[`column-${index}`]}</div>
+                  )}
                 </div>
               ))}
               <div className="add-column">
@@ -138,9 +176,12 @@ export default function Home() {
               <h3>Describe your API details</h3>
               <textarea
                 placeholder="Describe your API here..."
-                value={description}
+                // value={description}
                 onChange={handleDescriptionChange}
               ></textarea>
+              {formErrors.description && (
+                <div className="error">{formErrors.description}</div>
+              )}
             </div>
             <div className="configuration">
               <h3>Configuration</h3>
@@ -149,17 +190,25 @@ export default function Home() {
                   <label>API Name</label>
                   <input
                     type="text"
-                    value={apiName}
+                    // value={apiName}
+                    placeholder="API Name"
                     onChange={handleApiNameChange}
                   />
+                  {formErrors.apiName && (
+                    <div className="error">{formErrors.apiName}</div>
+                  )}
                 </div>
                 <div className="form-group">
-                  <label># Rows</label>
+                  <label>Rows</label>
                   <input
                     type="number"
-                    value={numRows}
+                    // value={numRows}
+                    placeholder="Number of Rows"
                     onChange={handleNumRowsChange}
                   />
+                  {formErrors.numRows && (
+                    <div className="error">{formErrors.numRows}</div>
+                  )}
                 </div>
                 <button
                   className="generate-btn"
@@ -189,9 +238,7 @@ export default function Home() {
                 <p>Generating...</p>
               ) : (
                 <pre>
-                  {
-                    errorMessage ?? apiData ?? "Click 'Generate API' to preview"
-                  }
+                  {errorMessage ?? apiData ?? "Click 'Generate API' to preview"}
                 </pre>
               )}
             </div>
@@ -222,6 +269,12 @@ export default function Home() {
           <p>© 2022 Omtun. All rights reserved.</p>
         </div>
       </div>
+      <style jsx>{`
+        .error {
+          color: red;
+          margin-top: 5px;
+        }
+      `}</style>
     </div>
   );
 }
