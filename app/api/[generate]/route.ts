@@ -5,12 +5,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const pool = require('../../../conf/db.ts');
 
 const apiKey = process.env.GEMINI_API_KEY as string;
-console.log('API KEY', apiKey);
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
   model: 'gemini-1.5-flash',
+   
 });
 
 const generationConfig = {
@@ -19,6 +19,7 @@ const generationConfig = {
   topK: 64,
   maxOutputTokens: 8192,
   responseMimeType: 'text/plain',
+  
 };
 
 let generatedDataStore: Record<string, any> = {};

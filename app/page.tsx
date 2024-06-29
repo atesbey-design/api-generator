@@ -91,7 +91,6 @@ export default function Home() {
         throw new Error(await response.text());
       }
     } catch (error: any) {
-      setApiData("Error generating API data");
       setErrorMessage(
         error.message.includes("Error parsing JSON")
           ? "Sistem şu an yoğunluktan çalışmıyor."
